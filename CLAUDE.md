@@ -52,6 +52,31 @@ utils/          - 工具类
 3. **README.md** - 如有目录结构变更
 4. **TECHNICAL_ARCHITECTURE.md** - 如有架构变更
 
+### 代码Review标准
+
+每次开发完一个功能后，必须执行以下Review检查：
+
+**1. 全量测试**
+- 运行所有测试（不仅是新增的），确认没有破坏已有功能
+- 命令：`pytest tests/test_models.py tests/test_knowledge_simple.py tests/test_collector.py tests/test_agent.py tests/test_report.py -v`
+
+**2. 代码质量检查**
+- 是否有未使用的 import
+- 是否有硬编码的值应该提取为配置
+- 是否有重复代码可以复用已有模块
+- 异步函数是否正确使用了 await
+- 异常处理是否完整（不能吞掉异常）
+
+**3. 接口兼容性**
+- 修改已有模块时，是否影响了其他模块的调用
+- 新增的函数/类是否有完整的类型注解
+- 返回值格式是否与已有约定一致
+
+**4. 文档一致性**
+- CLAUDE.md 中的模块状态是否已更新
+- DEVELOPMENT_PROGRESS.md 是否已更新
+- 新增的命令/功能是否在文档中有说明
+
 ### 代码规范
 
 - 使用异步模式（async/await）处理IO操作
