@@ -11,6 +11,7 @@ import json
 
 from .vector_store import VectorStore
 from .embeddings import EmbeddingService, create_embedding_service
+from utils.text_utils import split_text as utils_split_text
 
 logger = logging.getLogger(__name__)
 
@@ -373,31 +374,7 @@ class KnowledgeBase:
         Returns:
             分块列表
         """
-        if len(text) <= max_chunk_size:
-            return [text]
-
-        chunks = []
-        start = 0
-
-        while start < len(text):
-            end = start + max_chunk_size
-
-            # 尝试在句号、换行符处断开
-            if end < len(text):
-                # 找到最近的断句点
-                for sep in ["\n\n", "\n", "。", ".", "！", "!", "？", "?"]:
-                    last_sep = text[start:end].rfind(sep)
-                    if last_sep > max_chunk_size * 0.3:
-                        end = start + last_sep + len(sep)
-                        break
-
-            chunk = text[start:end].strip()
-            if chunk:
-                chunks.append(chunk)
-
-            start = end - overlap
-
-        return chunks
+        return utils_split_text(text, chunk_size=max_chunk_size, overlap=overlap)
 
     def clear(self):
         """清空知识库"""
