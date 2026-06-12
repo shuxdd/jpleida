@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.database import ReportORM, get_session
+from api.database import AnalysisTaskORM, ReportORM, get_session
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -83,6 +83,46 @@ async def get_report(
         raise HTTPException(status_code=404, detail="报告不存在")
 
     return {"code": 200, "data": _orm_to_response(orm), "message": "success"}
+
+
+@router.get("/{report_id}/chart-data")
+async def get_report_chart_data(
+    report_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """获取报告对应的分析结果数据（用于图表渲染）"""
+    result = await session.execute(
+        select(ReportORM).where(ReportORM.id == report_id)
+    )
+    report = result.scalar_one_or_none()
+
+    if not report:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
+    # 获取关联的分析任务
+    task_result = await session.execute(
+        select(AnalysisTaskORM).where(AnalysisTaskORM.id == report.analysis_id)
+    )
+    task = task_result.scalar_one_or_none()
+
+    if not task or not task.result:
+        return {"code": 200, "data": None, "message": "无分析数据"}
+
+    analysis = task.result.get("analysis_results", {})
+
+    return {
+        "code": 200,
+        "data": {
+            "competitors": task.competitors,
+            "analysis_type": task.analysis_type,
+            "dimensions": task.dimensions,
+            "feature_matrix": analysis.get("feature_matrix", {}),
+            "pricing_comparison": analysis.get("pricing_comparison", {}),
+            "swot_analysis": analysis.get("swot_analysis", {}),
+            "competitors_data": analysis.get("competitors_data", {}),
+        },
+        "message": "success",
+    }
 
 
 @router.get("/{report_id}/export")
