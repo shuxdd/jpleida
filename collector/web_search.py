@@ -10,6 +10,8 @@ import asyncio
 import logging
 
 from .base import BaseCollector
+from utils.cache import CacheManager, make_cache_key
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,7 @@ class WebSearchCollector(BaseCollector):
         self.language = language
         self.country = country
         self._client = None
+        self._cache = CacheManager(redis_url=settings.redis_url, prefix="search")
 
     def _get_client(self):
         """获取SerpAPI客户端"""
@@ -70,6 +73,13 @@ class WebSearchCollector(BaseCollector):
         if not self.api_key:
             raise ValueError("未配置SerpAPI密钥")
 
+        # 检查缓存
+        cache_key = make_cache_key("collect", target, str(num_results))
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            self.logger.info(f"搜索缓存命中: {target}")
+            return cached
+
         client = self._get_client()
 
         params = {
@@ -86,6 +96,9 @@ class WebSearchCollector(BaseCollector):
         # 在线程池中执行同步调用
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, lambda: client(params).get_dict())
+
+        # 写入缓存（24小时）
+        self._cache.set(cache_key, result, ttl=3600 * 24)
 
         return result
 

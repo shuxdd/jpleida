@@ -11,6 +11,8 @@ import logging
 
 from .base import BaseCollector
 from utils.text_utils import clean_text as utils_clean_text
+from utils.cache import CacheManager, make_cache_key
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ class WebScraperCollector(BaseCollector):
         self.headless = headless
         self.user_agent = user_agent or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         self._driver = None
+        self._cache = CacheManager(redis_url=settings.redis_url, prefix="scrape")
 
     def _get_driver(self):
         """获取Selenium WebDriver"""
@@ -86,6 +89,13 @@ class WebScraperCollector(BaseCollector):
         Returns:
             网页内容
         """
+        # 检查缓存
+        cache_key = make_cache_key("page", target)
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            self.logger.info(f"网页缓存命中: {target}")
+            return cached
+
         driver = self._get_driver()
 
         for attempt in range(self.max_retries):
@@ -111,13 +121,18 @@ class WebScraperCollector(BaseCollector):
                 current_url = driver.current_url
                 title = driver.title
 
-                return {
+                result = {
                     "url": target,
                     "current_url": current_url,
                     "title": title,
                     "html": page_source,
                     "status": "success"
                 }
+
+                # 写入缓存（7天）
+                self._cache.set(cache_key, result, ttl=3600 * 24 * 7)
+
+                return result
 
             except Exception as e:
                 logger.warning(f"爬取失败 (尝试 {attempt + 1}/{self.max_retries}): {target}, 错误: {e}")
