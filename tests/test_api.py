@@ -11,6 +11,49 @@ import asyncio
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import Mock, AsyncMock, patch
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
+# 测试用内存数据库
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+test_async_session = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def setup_test_db():
+    """每个测试前创建表，测试后清理"""
+    from api.database import Base
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+
+async def override_get_session():
+    """覆盖数据库依赖"""
+    async with test_async_session() as session:
+        yield session
+
+
+@pytest_asyncio.fixture
+async def test_app():
+    """创建测试用 FastAPI 应用"""
+    from api.app import create_app
+    from api.database import get_session
+    app = create_app()
+    app.dependency_overrides[get_session] = override_get_session
+    return app
+
+
+@pytest_asyncio.fixture
+async def client(test_app):
+    """创建测试客户端"""
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
 
 # ==================== 数据库层测试 ====================
 
@@ -112,6 +155,71 @@ class TestSchemas:
         )
         assert "Notion" in resp.answer
         assert len(resp.sources) == 1
+
+
+class TestCompetitorRoutes:
+    """竞品路由测试"""
+
+    @pytest.mark.asyncio
+    async def test_create_competitor(self, client):
+        """测试创建竞品"""
+        resp = await client.post("/api/competitors", json={
+            "name": "Notion",
+            "website": "https://notion.so",
+            "industry": "SaaS",
+            "tags": ["笔记", "协作"],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["data"]["name"] == "Notion"
+
+    @pytest.mark.asyncio
+    async def test_list_competitors(self, client):
+        """测试获取竞品列表"""
+        await client.post("/api/competitors", json={"name": "TestComp"})
+        resp = await client.get("/api/competitors")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_competitor(self, client):
+        """测试获取竞品详情"""
+        create_resp = await client.post("/api/competitors", json={"name": "DetailComp"})
+        comp_id = create_resp.json()["data"]["id"]
+
+        resp = await client.get(f"/api/competitors/{comp_id}")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["name"] == "DetailComp"
+
+    @pytest.mark.asyncio
+    async def test_get_competitor_not_found(self, client):
+        """测试获取不存在的竞品"""
+        resp = await client.get("/api/competitors/nonexistent")
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_update_competitor(self, client):
+        """测试更新竞品"""
+        create_resp = await client.post("/api/competitors", json={"name": "OldName"})
+        comp_id = create_resp.json()["data"]["id"]
+
+        resp = await client.put(f"/api/competitors/{comp_id}", json={"name": "NewName"})
+        assert resp.status_code == 200
+        assert resp.json()["data"]["name"] == "NewName"
+
+    @pytest.mark.asyncio
+    async def test_delete_competitor(self, client):
+        """测试删除竞品"""
+        create_resp = await client.post("/api/competitors", json={"name": "ToDelete"})
+        comp_id = create_resp.json()["data"]["id"]
+
+        resp = await client.delete(f"/api/competitors/{comp_id}")
+        assert resp.status_code == 200
+
+        resp = await client.get(f"/api/competitors/{comp_id}")
+        assert resp.status_code == 404
 
 
 if __name__ == "__main__":
