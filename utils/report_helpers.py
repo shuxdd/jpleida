@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 from utils.date_utils import format_datetime

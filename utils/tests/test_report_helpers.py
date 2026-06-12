@@ -1,5 +1,4 @@
 from datetime import datetime
-from unittest.mock import patch
 from utils.report_helpers import (
     generate_report_header,
     prepare_analysis_data,
