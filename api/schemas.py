@@ -111,7 +111,7 @@ class ReportResponse(BaseModel):
 
 class QARequest(BaseModel):
     """问答请求"""
-    question: str
+    question: str = Field(..., min_length=1, description="问题内容，不能为空")
     competitors: Optional[List[str]] = None
 
 

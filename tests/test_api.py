@@ -321,5 +321,44 @@ class TestReportRoutes:
         assert resp.status_code == 404
 
 
+class TestQARoutes:
+    """智能问答路由测试"""
+
+    @pytest.mark.asyncio
+    async def test_qa_submit(self, client):
+        """测试提交问答"""
+        with patch("api.routers.qa._get_knowledge_context") as mock_ctx, \
+             patch("api.routers.qa._ask_llm") as mock_llm:
+            mock_ctx.return_value = "Notion 是一款笔记协作工具"
+            mock_llm.return_value = "Notion 是一款全能型笔记和协作工具，支持文档、数据库、看板等功能。"
+
+            resp = await client.post("/api/qa", json={"question": "Notion 是什么？"})
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["code"] == 200
+            assert len(data["data"]["answer"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_qa_with_competitors(self, client):
+        """测试指定竞品的问答"""
+        with patch("api.routers.qa._get_knowledge_context") as mock_ctx, \
+             patch("api.routers.qa._ask_llm") as mock_llm:
+            mock_ctx.return_value = "Notion 定价信息"
+            mock_llm.return_value = "Notion 提供免费版、Plus 版 $8/月、Business 版 $15/月。"
+
+            resp = await client.post("/api/qa", json={
+                "question": "Notion 的定价是什么？",
+                "competitors": ["Notion"],
+            })
+            assert resp.status_code == 200
+            assert "Notion" in resp.json()["data"]["answer"]
+
+    @pytest.mark.asyncio
+    async def test_qa_empty_question(self, client):
+        """测试空问题"""
+        resp = await client.post("/api/qa", json={"question": ""})
+        assert resp.status_code == 422
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
