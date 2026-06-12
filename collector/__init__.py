@@ -11,6 +11,7 @@ from .web_scraper import WebScraperCollector
 from .cleaner import DataCleaner
 from .github_collector import GitHubCollector
 from .app_store_collector import AppStoreCollector
+from .huawei_collector import HuaweiCollector
 
 __all__ = [
     "BaseCollector",
@@ -20,4 +21,5 @@ __all__ = [
     "DataCleaner",
     "GitHubCollector",
     "AppStoreCollector",
+    "HuaweiCollector",
 ]

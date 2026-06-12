@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # GitHub配置
     github_token: str = ""
 
+    # 华为应用市场配置
+    huawei_key_file: str = ""
+
     # 爬虫配置
     scrape_timeout: int = 30
     max_retries: int = 3

@@ -10,6 +10,7 @@ from agent.graph_state import AgentState
 from collector.web_search import WebSearchCollector
 from collector.github_collector import GitHubCollector
 from collector.app_store_collector import AppStoreCollector
+from collector.huawei_collector import HuaweiCollector
 from config.settings import settings
 from utils.retry import retry_async
 from agent.progress import report_progress
@@ -29,6 +30,19 @@ GOOGLE_PLAY_APPS = {
     "钉钉": "com.alibaba.android.rimet",
     "企业微信": "com.tencent.wework",
     "飞书文档": "com.ss.android.lark",
+}
+
+# 竞品名称到华为应用市场包名的映射
+HUAWEI_APPS = {
+    "钉钉": "com.alibaba.android.rimet",
+    "企业微信": "com.tencent.wework",
+    "飞书文档": "com.ss.android.lark",
+    "文心一言": "com.baidu.baiduapp",
+    "通义千问": "com.aliyun.tongyi",
+    "小红书": "com.xingin.xhs",
+    "知乎": "com.zhihu.android",
+    "B站": "tv.danmaku.bili",
+    "有赞": "com.youzan.shop",
 }
 
 # 标签到数据源的映射
@@ -74,6 +88,7 @@ async def search_competitors(state: AgentState) -> dict:
     search_collector = WebSearchCollector(api_key=settings.serpapi_key)
     github_collector = GitHubCollector(token=settings.github_token)
     app_store_collector = AppStoreCollector()
+    huawei_collector = HuaweiCollector()
 
     for comp in competitors:
         name = comp if isinstance(comp, str) else comp.get("name", "")
@@ -137,6 +152,21 @@ async def search_competitors(state: AgentState) -> dict:
                     logger.info(f"  应用商店完成: ⭐{app_result.get('data', {}).get('rating', 0)}")
                 except Exception as e:
                     logger.warning(f"  应用商店 {name} 失败: {e}")
+
+        # 4. 华为应用市场采集（按需，有密钥文件时启用）
+        if name_lower in HUAWEI_APPS and settings.huawei_key_file:
+            pkg_name = HUAWEI_APPS[name_lower]
+            logger.info(f"  采集华为应用市场: {pkg_name}")
+            try:
+                hw_result = await huawei_collector.run(pkg_name, max_size=30)
+                all_results.append({
+                    "competitor": name,
+                    "source": "huawei",
+                    "data": hw_result.get("data", {})
+                })
+                logger.info(f"  华为完成: ⭐{hw_result.get('data', {}).get('rating', 0)}")
+            except Exception as e:
+                logger.warning(f"  华为 {name} 失败: {e}")
 
     logger.info(f"搜索完成，共处理 {len(competitors)} 个竞品")
     report_progress(state.get("progress_callback"), "searcher")
