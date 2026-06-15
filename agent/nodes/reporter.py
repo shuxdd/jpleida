@@ -2,9 +2,10 @@
 报告生成节点
 ============
 
-使用LLM生成竞品分析报告。
+使用LLM生成竞品分析报告，带质量反思机制。
 """
 
+import re
 import logging
 from agent.graph_state import AgentState
 from agent.llm import create_llm
@@ -26,6 +27,7 @@ async def generate_report(state: AgentState) -> dict:
     报告生成节点
 
     根据分析结果生成Markdown格式的竞品分析报告。
+    生成后自动检查质量，不达标时反馈给LLM重生成一次。
     """
     logger.info("开始生成报告...")
 
@@ -62,13 +64,31 @@ async def generate_report(state: AgentState) -> dict:
         logger.info(f"使用{template_label}模板，维度: {', '.join(dimensions)}")
 
         analysis_data = _prepare_analysis_data(analysis_results, competitors, my_product, competitor_notes)
-        prompt = ReportTemplates.get_prompt(report_type).format(
+        base_prompt = ReportTemplates.get_prompt(report_type).format(
             analysis_data=analysis_data,
             sections="\n\n".join(selected_sections),
         )
 
-        response = await retry_async(lambda: llm.ainvoke(prompt))
-        report = response.content
+        # 生成 + 质量反思循环（最多 2 次）
+        report = ""
+        prompt = base_prompt
+
+        for attempt in range(2):
+            response = await retry_async(lambda: llm.ainvoke(prompt))
+            report = response.content
+
+            if attempt == 0:
+                issues = _check_report_quality(report, competitors)
+                if not issues:
+                    logger.info("报告质量检查通过")
+                    break
+                logger.warning(f"报告质量检查发现问题，重新生成: {issues}")
+                prompt = base_prompt + (
+                    "\n\n[质量反馈] 上次生成的报告存在以下问题，请修改完善：\n"
+                    + "\n".join(f"- {issue}" for issue in issues)
+                )
+            else:
+                logger.info("二次生成完成")
 
         # 添加报告头部
         header = _generate_header(competitors)
@@ -91,6 +111,35 @@ async def generate_report(state: AgentState) -> dict:
             "status": "completed",
             "errors": state.get("errors", []) + [f"报告生成警告: {str(e)}，已生成简化报告"]
         }
+
+
+def _check_report_quality(report: str, competitors: list) -> list:
+    """
+    报告质量检查（规则驱动，不额外调用 LLM）
+
+    检查项：
+    - 长度是否过短（少于 300 字说明 LLM 偷懒了）
+    - 是否有 Markdown 章节结构
+    - 是否提到了竞品名称
+    """
+    issues = []
+
+    # 1. 长度检查
+    if len(report) < 300:
+        issues.append("报告内容过短（少于300字），请展开每个章节，补充具体数据和分析")
+
+    # 2. 章节结构检查
+    section_count = len(re.findall(r'^##\s+\S', report, re.MULTILINE))
+    if section_count < 2:
+        issues.append("缺少必要的 Markdown 章节（##），请按要求的格式分章节生成")
+
+    # 3. 竞品名称检查（至少覆盖一半）
+    matched = sum(1 for c in competitors if c in report)
+    if competitors and matched < max(1, len(competitors) // 2):
+        names = "、".join(competitors)
+        issues.append(f"报告未充分覆盖所有竞品（{names}），请确保每个竞品都有独立分析")
+
+    return issues
 
 
 def _prepare_analysis_data(analysis_results: dict, competitors: list, my_product: str = None, competitor_notes: dict = None) -> str:
