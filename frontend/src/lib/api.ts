@@ -32,6 +32,10 @@ api.interceptors.request.use((config) => {
 // 响应拦截器 - 解包 data 字段 + 401 跳转登录
 api.interceptors.response.use(
   (response) => {
+    // blob/文件下载类请求不检查 data.code
+    if (response.config.responseType === 'blob' || response.config.responseType === 'arraybuffer') {
+      return response
+    }
     const data = response.data as ApiResponse | PaginatedResponse
     if (data.code !== 200) {
       return Promise.reject(new Error(data.message || '请求失败'))
@@ -95,6 +99,13 @@ export const reportApi = {
     api.get<ApiResponse<ChartDataResponse>>(`/api/reports/${id}/chart-data`),
 
   delete: (id: string) => api.delete<ApiResponse>(`/api/reports/${id}`),
+
+  export: async (id: string) => {
+    const response = await api.get(`/api/reports/${id}/export`, {
+      responseType: 'blob',
+    })
+    return response
+  },
 }
 
 // 图表数据类型

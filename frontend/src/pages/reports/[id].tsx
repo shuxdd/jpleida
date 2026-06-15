@@ -33,9 +33,30 @@ export default function ReportDetail() {
   const report = reportData?.data?.data
   const charts = chartData?.data?.data
 
-  const handleExport = () => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-    window.open(`${baseUrl}/api/reports/${id}/export`, '_blank')
+  const handleExport = async () => {
+    try {
+      const response = await reportApi.export(id!)
+      const blob = response.data as Blob
+      const url = window.URL.createObjectURL(blob)
+
+      // 从 Content-Disposition 提取文件名
+      let filename = `${report?.title || 'report'}.md`
+      const disposition = response.headers?.['content-disposition']
+      if (disposition) {
+        const match = disposition.match(/filename\*?=UTF-8''(.+?)(?:;|$)/)
+        if (match) filename = decodeURIComponent(match[1])
+      }
+
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch {
+      // Error toast handled by axios interceptor
+    }
   }
 
   if (isLoading) {

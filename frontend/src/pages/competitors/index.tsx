@@ -347,10 +347,10 @@ export default function CompetitorList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">竞品信息 <span className="text-xs text-muted-foreground font-normal">（将融入分析报告）</span></Label>
+              <Label htmlFor="notes">竞品信息</Label>
               <Textarea
                 id="notes"
-                placeholder="填写你了解的这个竞品的额外信息，如公司背景、产品定位、目标用户等，这些信息会出现在分析报告中"
+                placeholder="可选，填写你了解的额外信息"
                 value={formData.notes}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, notes: e.target.value }))

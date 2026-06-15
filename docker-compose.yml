@@ -12,10 +12,12 @@ services:
     env_file:
       - .env
     environment:
+      - TZ=Asia/Shanghai
       - CHROMA_PERSIST_DIR=/data/chroma
       - REPORT_OUTPUT_DIR=/data/reports
     volumes:
-      - app_data:/data
+      - ./data:/data
+      - ./logs:/app/logs
     depends_on:
       redis:
         condition: service_started
@@ -53,5 +55,4 @@ services:
       retries: 3
 
 volumes:
-  app_data:
   redis_data:

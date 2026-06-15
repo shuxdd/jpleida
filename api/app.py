@@ -18,6 +18,11 @@ from config.settings import settings
 from api.database import init_db
 from api.routers import register_routers
 from api.auth import verify_token
+from utils.logger import setup_logger
+
+# 初始化日志根记录器（所有模块的日志都会写入 logs/app.log）
+root_logger = setup_logger("", level=getattr(logging, settings.log_level))
+root_logger.info("日志系统初始化完成")
 
 logger = logging.getLogger(__name__)
 
