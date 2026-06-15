@@ -153,7 +153,7 @@ def _build_pricing_comparison(merged_data: Dict[str, Any]) -> Dict:
 
 
 async def _generate_swot(merged_data: Dict[str, Any]) -> Dict:
-    """生成SWOT分析"""
+    """生成SWOT分析（带质量反思）"""
     swot_results = {}
 
     try:
@@ -162,15 +162,30 @@ async def _generate_swot(merged_data: Dict[str, Any]) -> Dict:
         for name, data in merged_data.items():
             try:
                 info_str = json.dumps(data, ensure_ascii=False, default=str)[:3000]
-                prompt = SWOT_PROMPT.format(competitor_info=info_str)
+                base_prompt = SWOT_PROMPT.format(competitor_info=info_str)
+                prompt = base_prompt
+                swot = None
 
-                response = await retry_async(lambda: llm.ainvoke(prompt))
-                content = response.content
+                # 生成 + 质量反思循环（最多 2 次）
+                for attempt in range(2):
+                    response = await retry_async(lambda: llm.ainvoke(prompt))
+                    content = response.content
 
-                # 解析SWOT
-                swot = extract_json_from_llm(content)
-                if swot is None:
-                    swot = {"raw_response": content}
+                    swot = extract_json_from_llm(content)
+                    if swot is None:
+                        swot = {"raw_response": content}
+                        break
+
+                    if attempt == 0:
+                        issues = _check_swot_quality(swot)
+                        if not issues:
+                            break
+                        logger.warning(f"  {name} SWOT质量检查未通过，重新生成: {issues}")
+                        prompt = base_prompt + (
+                            "\n\n[质量反馈] 上次生成的SWOT存在以下问题，请修改完善：\n"
+                            + "\n".join(f"- {issue}" for issue in issues)
+                        )
+                    # 第二次直接接受
 
                 swot_results[name] = swot
 
@@ -182,6 +197,29 @@ async def _generate_swot(merged_data: Dict[str, Any]) -> Dict:
         logger.error(f"SWOT分析整体失败: {e}")
 
     return swot_results
+
+
+def _check_swot_quality(swot: dict) -> list:
+    """
+    SWOT 质量检查
+    检查四个维度是否都有内容，且每个维度至少 2 条
+    """
+    issues = []
+    required_dims = {
+        "strengths": "优势",
+        "weaknesses": "劣势",
+        "opportunities": "机会",
+        "threats": "威胁",
+    }
+
+    for key, label in required_dims.items():
+        items = swot.get(key, [])
+        if not isinstance(items, list) or len(items) == 0:
+            issues.append(f"{label}（{key}）为空，请补充分析")
+        elif len(items) == 1:
+            issues.append(f"{label}（{key}）只有1条，建议至少补充到3条")
+
+    return issues
 
 
 def _classify_rating(rating: int) -> str:
