@@ -128,26 +128,28 @@ export default function ReportDetail() {
         </TabsList>
 
         <TabsContent value="visualization" className="space-y-4 mt-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          {charts && <>
+            <div className="grid gap-4 md:grid-cols-2">
+              {charts.feature_matrix?.features?.length > 0 && (
+                <FeatureRadar
+                  features={charts.feature_matrix.features}
+                  competitors={charts.feature_matrix.competitors}
+                />
+              )}
+              {Object.keys(charts.pricing_comparison?.competitors ?? {}).length > 0 && (
+                <PricingBar competitors={charts.pricing_comparison.competitors} />
+              )}
+            </div>
             {charts.feature_matrix?.features?.length > 0 && (
-              <FeatureRadar
+              <FeatureTable
                 features={charts.feature_matrix.features}
                 competitors={charts.feature_matrix.competitors}
               />
             )}
-            {Object.keys(charts.pricing_comparison?.competitors ?? {}).length > 0 && (
-              <PricingBar competitors={charts.pricing_comparison.competitors} />
+            {Object.keys(charts.swot_analysis ?? {}).length > 0 && (
+              <SwotSummary swot_analysis={charts.swot_analysis} />
             )}
-          </div>
-          {charts.feature_matrix?.features?.length > 0 && (
-            <FeatureTable
-              features={charts.feature_matrix.features}
-              competitors={charts.feature_matrix.competitors}
-            />
-          )}
-          {Object.keys(charts.swot_analysis ?? {}).length > 0 && (
-            <SwotSummary swot_analysis={charts.swot_analysis} />
-          )}
+          </>}
         </TabsContent>
 
         <TabsContent value="content" className="mt-4">
