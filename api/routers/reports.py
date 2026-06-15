@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.database import AnalysisTaskORM, ReportORM, get_session
 from api.auth import require_user
+from api.cache import cached_list, cached_item, invalidate_list
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -45,29 +46,34 @@ async def list_reports(
     user=Depends(require_user),
 ):
     """获取报告列表"""
-    query = select(ReportORM).where(ReportORM.user_id == user.id)
+    async def _query():
+        query = select(ReportORM).where(ReportORM.user_id == user.id)
 
-    if analysis_id:
-        query = query.where(ReportORM.analysis_id == analysis_id)
-    if report_type:
-        query = query.where(ReportORM.report_type == report_type)
+        if analysis_id:
+            query = query.where(ReportORM.analysis_id == analysis_id)
+        if report_type:
+            query = query.where(ReportORM.report_type == report_type)
 
-    count_query = select(func.count()).select_from(query.subquery())
-    total = (await session.execute(count_query)).scalar() or 0
+        count_query = select(func.count()).select_from(query.subquery())
+        total = (await session.execute(count_query)).scalar() or 0
 
-    query = query.order_by(ReportORM.created_at.desc())
-    query = query.offset((page - 1) * page_size).limit(page_size)
-    result = await session.execute(query)
-    reports = result.scalars().all()
+        query = query.order_by(ReportORM.created_at.desc())
+        query = query.offset((page - 1) * page_size).limit(page_size)
+        result = await session.execute(query)
+        reports = result.scalars().all()
 
-    return {
-        "code": 200,
-        "data": [_orm_to_response(r) for r in reports],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "message": "success",
-    }
+        return {
+            "code": 200,
+            "data": [_orm_to_response(r) for r in reports],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "message": "success",
+        }
+
+    if analysis_id or report_type:
+        return await _query()
+    return await cached_list(user.id, "reports", _query)
 
 
 async def _get_user_report(
@@ -174,5 +180,6 @@ async def delete_report(
     await session.delete(orm)
     await session.commit()
 
+    invalidate_list(user.id, "reports")
     logger.info(f"删除报告: {report_id}")
     return {"code": 200, "data": None, "message": "删除成功"}

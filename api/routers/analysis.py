@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.database import AnalysisTaskORM, ReportORM, UserORM, get_session
 from api.schemas import AnalysisSubmitRequest
 from api.auth import require_user
+from api.cache import cached_list, cached_item, invalidate_list, invalidate_item
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -166,6 +167,8 @@ async def submit_analysis(
     task = asyncio.create_task(_run_analysis(orm.id, user.id))
     _running_tasks[orm.id] = task
 
+    invalidate_list(user.id, "tasks")
+
     logger.info(f"提交分析任务: {orm.id}, 竞品: {req.competitors}")
     return {
         "code": 200,
@@ -183,27 +186,32 @@ async def list_tasks(
     user=Depends(require_user),
 ):
     """获取任务列表"""
-    query = select(AnalysisTaskORM).where(AnalysisTaskORM.user_id == user.id)
+    async def _query():
+        query = select(AnalysisTaskORM).where(AnalysisTaskORM.user_id == user.id)
+
+        if status:
+            query = query.where(AnalysisTaskORM.status == status)
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = (await session.execute(count_query)).scalar() or 0
+
+        query = query.order_by(AnalysisTaskORM.created_at.desc())
+        query = query.offset((page - 1) * page_size).limit(page_size)
+        result = await session.execute(query)
+        tasks = result.scalars().all()
+
+        return {
+            "code": 200,
+            "data": [_orm_to_response(t) for t in tasks],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "message": "success",
+        }
 
     if status:
-        query = query.where(AnalysisTaskORM.status == status)
-
-    count_query = select(func.count()).select_from(query.subquery())
-    total = (await session.execute(count_query)).scalar() or 0
-
-    query = query.order_by(AnalysisTaskORM.created_at.desc())
-    query = query.offset((page - 1) * page_size).limit(page_size)
-    result = await session.execute(query)
-    tasks = result.scalars().all()
-
-    return {
-        "code": 200,
-        "data": [_orm_to_response(t) for t in tasks],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "message": "success",
-    }
+        return await _query()
+    return await cached_list(user.id, "tasks", _query)
 
 
 @router.get("/{task_id}")
@@ -213,18 +221,33 @@ async def get_task(
     user=Depends(require_user),
 ):
     """获取任务详情"""
-    result = await session.execute(
-        select(AnalysisTaskORM).where(
-            AnalysisTaskORM.id == task_id,
-            AnalysisTaskORM.user_id == user.id,
+
+    # 运行中的任务不缓存（状态在变化）
+    if task_id in _running_tasks:
+        result = await session.execute(
+            select(AnalysisTaskORM).where(
+                AnalysisTaskORM.id == task_id,
+                AnalysisTaskORM.user_id == user.id,
+            )
         )
-    )
-    orm = result.scalar_one_or_none()
+        orm = result.scalar_one_or_none()
+        if not orm:
+            raise HTTPException(status_code=404, detail="任务不存在")
+        return {"code": 200, "data": _orm_to_response(orm), "message": "success"}
 
-    if not orm:
-        raise HTTPException(status_code=404, detail="任务不存在")
+    async def _query():
+        result = await session.execute(
+            select(AnalysisTaskORM).where(
+                AnalysisTaskORM.id == task_id,
+                AnalysisTaskORM.user_id == user.id,
+            )
+        )
+        orm = result.scalar_one_or_none()
+        if not orm:
+            raise HTTPException(status_code=404, detail="任务不存在")
+        return {"code": 200, "data": _orm_to_response(orm), "message": "success"}
 
-    return {"code": 200, "data": _orm_to_response(orm), "message": "success"}
+    return await cached_item(user.id, "tasks", task_id, _query)
 
 
 @router.delete("/{task_id}")
@@ -252,5 +275,7 @@ async def delete_task(
     await session.delete(orm)
     await session.commit()
 
+    invalidate_item(user.id, "tasks", task_id)
+    invalidate_list(user.id, "tasks")
     logger.info(f"删除任务: {task_id}")
     return {"code": 200, "data": None, "message": "删除成功"}
