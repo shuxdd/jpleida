@@ -19,6 +19,7 @@ import { FeatureRadar } from '@/components/charts/FeatureRadar'
 import { FeatureTable } from '@/components/charts/FeatureTable'
 import { PricingBar } from '@/components/charts/PricingBar'
 import { SwotSummary } from '@/components/charts/SwotSummary'
+import { EvaluationScore } from '@/components/charts/EvaluationScore'
 
 export default function ReportDetail() {
   const { id } = useParams<{ id: string }>()
@@ -36,8 +37,15 @@ export default function ReportDetail() {
     enabled: !!id,
   })
 
+  const { data: evalData } = useQuery({
+    queryKey: ['report-evaluation', id],
+    queryFn: () => reportApi.getEvaluation(id!),
+    enabled: !!id,
+  })
+
   const report = reportData?.data?.data
   const charts = chartData?.data?.data
+  const evaluation = evalData?.data?.data
 
   const handleExport = async () => {
     try {
@@ -164,6 +172,11 @@ export default function ReportDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* LLM-as-Judge 评估 */}
+      {evaluation && (
+        <EvaluationScore evaluation={evaluation} />
+      )}
     </div>
   )
 }

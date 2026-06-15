@@ -10,6 +10,7 @@ import type {
   QAResponse,
   ApiResponse,
   PaginatedResponse,
+  EvaluationResult,
 } from '@/types'
 
 const api = axios.create({
@@ -99,6 +100,9 @@ export const reportApi = {
     api.get<ApiResponse<ChartDataResponse>>(`/api/reports/${id}/chart-data`),
 
   delete: (id: string) => api.delete<ApiResponse>(`/api/reports/${id}`),
+
+  getEvaluation: (id: string) =>
+    api.get<ApiResponse<EvaluationResult | null>>(`/api/reports/${id}/evaluation`),
 
   export: async (id: string) => {
     const response = await api.get(`/api/reports/${id}/export`, {

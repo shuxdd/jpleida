@@ -195,6 +195,52 @@ COMPARISON_REPORT_PROMPT = """
 4. 语言简洁专业，重点突出我方优势和改进方向
 """
 
+# 报告质量评估 Prompt（LLM-as-Judge）
+EVALUATION_PROMPT = """
+你是一个严格的竞品分析报告质量评估员。请评估以下报告的质量。
+
+## 评估维度
+
+### 1. 覆盖度 (coverage)
+是否覆盖了所有竞品和分析维度？有没有遗漏重要信息？
+
+### 2. 分析深度 (depth)
+分析是否具体有依据，还是泛泛而谈？SWOT 分析是否针对每个竞品的特点？
+
+### 3. 结构化 (structure)
+报告结构是否清晰？Markdown 格式（表格、列表、标题层级）是否规范？
+
+### 4. 可操作性 (actionability)
+战略建议是否具体可执行？是否针对每个竞品提出了差异化策略？
+
+## 评分标准（严格）
+- **1分**：严重缺陷，基本不符合要求
+- **2分**：有明显不足，需要大幅改进
+- **3分**：及格，达到了基本要求但不够深入
+- **4分**：良好，大部分维度表现不错
+- **5分**：优秀，超出预期
+
+## 任务信息
+- 竞品: {competitors}
+- 分析维度: {dimensions}
+
+## 报告内容
+{report_content}
+
+请返回严格 JSON 格式：
+```json
+{{
+    "coverage": {{"score": 3, "reasoning": "评分理由..."}},
+    "depth": {{"score": 3, "reasoning": "评分理由..."}},
+    "structure": {{"score": 3, "reasoning": "评分理由..."}},
+    "actionability": {{"score": 3, "reasoning": "评分理由..."}},
+    "overall_score": 3,
+    "overall_summary": "总体评价（30字以内）",
+    "key_improvements": ["改进点1", "改进点2", "改进点3"]
+}}
+```
+"""
+
 # 问答Prompt
 QA_PROMPT = """
 你是一个竞品分析助手。基于以下知识库信息，回答用户的问题。

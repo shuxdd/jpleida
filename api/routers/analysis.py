@@ -44,7 +44,7 @@ def _orm_to_response(orm: AnalysisTaskORM) -> dict:
 
 async def _run_analysis(task_id: str, user_id: str):
     """后台执行分析任务"""
-    from api.database import async_session, CompetitorORM
+    from api.database import async_session, CompetitorORM, EvaluationORM
     from agent.graph import create_analysis_graph
     from api.app import progress_manager
 
@@ -102,6 +102,7 @@ async def _run_analysis(task_id: str, user_id: str):
                 "extracted_info": [],
                 "analysis_results": {},
                 "report": "",
+                "evaluation": {},
                 "status": "collecting",
                 "errors": [],
                 "progress_callback": on_progress,
@@ -112,6 +113,7 @@ async def _run_analysis(task_id: str, user_id: str):
             task.result = {
                 "report": graph_result.get("report", ""),
                 "analysis_results": graph_result.get("analysis_results", {}),
+                "evaluation": graph_result.get("evaluation", {}),
                 "errors": errors,
             }
             if errors:
@@ -120,6 +122,7 @@ async def _run_analysis(task_id: str, user_id: str):
             await session.commit()
 
             # 先保存报告，前端立即可见
+            report_orm = None
             if graph_result.get("report"):
                 report_orm = ReportORM(
                     user_id=user_id,
@@ -130,6 +133,29 @@ async def _run_analysis(task_id: str, user_id: str):
                     content=graph_result["report"],
                 )
                 session.add(report_orm)
+                await session.commit()
+
+            # 保存评估结果
+            evaluation = graph_result.get("evaluation", {})
+            if evaluation and evaluation.get("overall_score", 0) > 0 and report_orm:
+                eval_orm = EvaluationORM(
+                    user_id=user_id,
+                    analysis_id=task_id,
+                    report_id=report_orm.id,
+                    coverage_score=evaluation.get("coverage", {}).get("score", 0),
+                    depth_score=evaluation.get("depth", {}).get("score", 0),
+                    structure_score=evaluation.get("structure", {}).get("score", 0),
+                    actionability_score=evaluation.get("actionability", {}).get("score", 0),
+                    overall_score=evaluation.get("overall_score", 0),
+                    coverage_reasoning=evaluation.get("coverage", {}).get("reasoning", ""),
+                    depth_reasoning=evaluation.get("depth", {}).get("reasoning", ""),
+                    structure_reasoning=evaluation.get("structure", {}).get("reasoning", ""),
+                    actionability_reasoning=evaluation.get("actionability", {}).get("reasoning", ""),
+                    overall_summary=evaluation.get("overall_summary", ""),
+                    key_improvements=evaluation.get("key_improvements", []),
+                    diagnosis=evaluation.get("diagnosis", []),
+                )
+                session.add(eval_orm)
                 await session.commit()
 
             logger.info(f"分析任务完成: {task_id}")

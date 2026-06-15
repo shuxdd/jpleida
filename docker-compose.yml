@@ -6,13 +6,13 @@
 services:
   # -------- PostgreSQL 数据库 --------
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       - POSTGRES_USER=app
       - POSTGRES_PASSWORD=app123
       - POSTGRES_DB=competitor_analysis
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     ports:
       - "5432:5432"
     restart: unless-stopped

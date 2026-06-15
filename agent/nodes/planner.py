@@ -52,6 +52,11 @@ async def plan_analysis(state: AgentState) -> dict:
             logger.warning("LLM返回的计划无法解析为JSON，使用默认计划")
             plan = _generate_default_plan(competitors, dimensions)
 
+        # 保留已有的 competitors_meta（如 google_play_id 等）
+        existing_meta = state.get("collection_plan", {}).get("competitors_meta", {})
+        if existing_meta:
+            plan["competitors_meta"] = existing_meta
+
         logger.info(f"任务规划完成，计划包含 {len(plan.get('competitors', []))} 个竞品")
         report_progress(state.get("progress_callback"), "planner")
         return {
@@ -64,6 +69,10 @@ async def plan_analysis(state: AgentState) -> dict:
         logger.error(f"任务规划失败: {e}")
         # 使用默认计划作为降级
         plan = _generate_default_plan(competitors, dimensions)
+        # 降级时也保留 competitors_meta
+        existing_meta = state.get("collection_plan", {}).get("competitors_meta", {})
+        if existing_meta:
+            plan["competitors_meta"] = existing_meta
         report_progress(state.get("progress_callback"), "planner")
         return {
             "collection_plan": plan,

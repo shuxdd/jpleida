@@ -55,14 +55,15 @@ async def scrape_data(state: AgentState) -> dict:
 
                 for page in scraped_pages:
                     if page.get("status") == "success":
-                        text = page.get("text", "")
+                        page_data = page.get("data", {})
+                        text = page_data.get("text", "")
                         cleaned_text = DataCleaner.clean_text(text)
 
                         all_scraped.append({
                             "competitor": competitor,
                             "source": "web_scrape",
-                            "url": page.get("url", ""),
-                            "title": page.get("title", ""),
+                            "url": page_data.get("url", page.get("target", "")),
+                            "title": page_data.get("title", ""),
                             "text": cleaned_text[:10000],
                             "text_length": len(cleaned_text)
                         })

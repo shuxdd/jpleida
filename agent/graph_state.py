@@ -28,6 +28,7 @@ class AgentState(TypedDict):
 
     # 输出
     report: str
+    evaluation: dict             # evaluator输出的评估结果
     status: str
     errors: List[str]
 

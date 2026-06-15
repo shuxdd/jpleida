@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import AsyncGenerator
 
-from sqlalchemy import Column, String, Text, DateTime, JSON
+from sqlalchemy import Column, String, Integer, Text, DateTime, JSON
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -87,6 +87,34 @@ class ReportORM(Base):
     format = Column(String, default="markdown")
     content = Column(Text, nullable=False)
     file_path = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class EvaluationORM(Base):
+    """报告质量评估 ORM 模型"""
+    __tablename__ = "evaluations"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, nullable=False, index=True)
+    analysis_id = Column(String, nullable=False, index=True)
+    report_id = Column(String, nullable=False)
+
+    # 各维度评分 1-5
+    coverage_score = Column(Integer, nullable=False, default=0)
+    depth_score = Column(Integer, nullable=False, default=0)
+    structure_score = Column(Integer, nullable=False, default=0)
+    actionability_score = Column(Integer, nullable=False, default=0)
+    overall_score = Column(Integer, nullable=False, default=0)
+
+    # 评分理由
+    coverage_reasoning = Column(Text, nullable=True)
+    depth_reasoning = Column(Text, nullable=True)
+    structure_reasoning = Column(Text, nullable=True)
+    actionability_reasoning = Column(Text, nullable=True)
+    overall_summary = Column(Text, nullable=True)
+    key_improvements = Column(JSON, default=list)
+    diagnosis = Column(JSON, default=list)
+
     created_at = Column(DateTime, default=datetime.now)
 
 

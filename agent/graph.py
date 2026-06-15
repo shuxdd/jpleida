@@ -15,6 +15,7 @@ from agent.nodes.scraper import scrape_data
 from agent.nodes.extractor import extract_info
 from agent.nodes.analyzer import analyze_competitors
 from agent.nodes.reporter import generate_report
+from agent.nodes.evaluator import evaluate_report
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ def create_analysis_graph():
     graph.add_node("extractor", extract_info)
     graph.add_node("analyzer", analyze_competitors)
     graph.add_node("reporter", generate_report)
+    graph.add_node("evaluator", evaluate_report)
 
     # 直线流程（知识库入库单独异步执行）
     graph.add_edge(START, "planner")
@@ -48,7 +50,8 @@ def create_analysis_graph():
     graph.add_edge("scraper", "extractor")
     graph.add_edge("extractor", "analyzer")
     graph.add_edge("analyzer", "reporter")
-    graph.add_edge("reporter", END)
+    graph.add_edge("reporter", "evaluator")
+    graph.add_edge("evaluator", END)
 
     logger.info("状态图创建完成")
     return graph.compile()

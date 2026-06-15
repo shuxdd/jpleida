@@ -26,6 +26,7 @@ class TestAgentState:
             "extracted_info": [],
             "analysis_results": {},
             "report": "",
+            "evaluation": {},
             "status": "pending",
             "errors": []
         }
@@ -60,7 +61,7 @@ class TestGraphAssembly:
 
         # 获取图的节点列表
         nodes = list(graph.get_graph().nodes)
-        expected_nodes = {"planner", "searcher", "scraper", "extractor", "analyzer", "reporter", "__start__", "__end__"}
+        expected_nodes = {"planner", "searcher", "scraper", "extractor", "analyzer", "reporter", "evaluator", "__start__", "__end__"}
 
         for node in expected_nodes:
             assert node in nodes, f"缺少节点: {node}"
@@ -208,6 +209,45 @@ class TestReporterNode:
         assert "竞品分析报告" in report
         assert "测试摘要" in report
         assert "功能A" in report
+
+
+
+class TestEvaluatorNode:
+    """评估节点测试"""
+
+    def test_empty_result(self):
+        """测试空评估结果"""
+        from agent.nodes.evaluator import _empty_result
+
+        result = _empty_result("test error")
+        assert result["overall_score"] == 0
+        assert len(result["key_improvements"]) == 0
+        assert result["coverage"]["score"] == 0
+
+    def test_generate_diagnosis(self):
+        """测试诊断生成"""
+        from agent.nodes.evaluator import _generate_diagnosis
+
+        # 全低分
+        poor_eval = {
+            "coverage": {"score": 2, "reasoning": "low"},
+            "depth": {"score": 2, "reasoning": "low"},
+            "structure": {"score": 2, "reasoning": "low"},
+            "actionability": {"score": 2, "reasoning": "low"},
+        }
+        diag = _generate_diagnosis(poor_eval)
+        assert len(diag) == 4  # 4个维度都低于3
+        assert all(d.startswith("[") for d in diag)
+
+        # 全高分 — 不生成诊断
+        good_eval = {
+            "coverage": {"score": 5, "reasoning": "good"},
+            "depth": {"score": 4, "reasoning": "good"},
+            "structure": {"score": 5, "reasoning": "good"},
+            "actionability": {"score": 4, "reasoning": "good"},
+        }
+        diag = _generate_diagnosis(good_eval)
+        assert len(diag) == 0  # 全部 >= 4，不生成诊断
 
 
 if __name__ == "__main__":

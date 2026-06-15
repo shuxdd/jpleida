@@ -108,3 +108,19 @@ export interface ChartData {
   name: string
   value: number
 }
+
+// 评估结果
+export interface EvaluationResult {
+  id: string
+  analysis_id: string
+  report_id: string
+  coverage: { score: number; reasoning: string }
+  depth: { score: number; reasoning: string }
+  structure: { score: number; reasoning: string }
+  actionability: { score: number; reasoning: string }
+  overall_score: number
+  overall_summary: string
+  key_improvements: string[]
+  diagnosis: string[]
+  created_at: string
+}

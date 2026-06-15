@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.database import AnalysisTaskORM, ReportORM, get_session
+from api.database import AnalysisTaskORM, ReportORM, EvaluationORM, get_session
 from api.auth import require_user
 from api.cache import cached_list, cached_item, invalidate_list
 
@@ -167,6 +167,48 @@ async def export_report(
         media_type="text/markdown",
         headers={"Content-Disposition": disposition},
     )
+
+
+@router.get("/{report_id}/evaluation")
+async def get_evaluation(
+    report_id: str,
+    session: AsyncSession = Depends(get_session),
+    user=Depends(require_user),
+):
+    """获取报告质量评估结果"""
+    result = await session.execute(
+        select(EvaluationORM).where(
+            EvaluationORM.report_id == report_id,
+            EvaluationORM.user_id == user.id,
+        )
+    )
+    orm = result.scalar_one_or_none()
+
+    if not orm:
+        return {
+            "code": 200,
+            "data": None,
+            "message": "暂无评估数据（评估可能还在进行中）",
+        }
+
+    return {
+        "code": 200,
+        "data": {
+            "id": orm.id,
+            "analysis_id": orm.analysis_id,
+            "report_id": orm.report_id,
+            "coverage": {"score": orm.coverage_score, "reasoning": orm.coverage_reasoning},
+            "depth": {"score": orm.depth_score, "reasoning": orm.depth_reasoning},
+            "structure": {"score": orm.structure_score, "reasoning": orm.structure_reasoning},
+            "actionability": {"score": orm.actionability_score, "reasoning": orm.actionability_reasoning},
+            "overall_score": orm.overall_score,
+            "overall_summary": orm.overall_summary,
+            "key_improvements": orm.key_improvements or [],
+            "diagnosis": orm.diagnosis or [],
+            "created_at": orm.created_at.isoformat() if orm.created_at else None,
+        },
+        "message": "success",
+    }
 
 
 @router.delete("/{report_id}")

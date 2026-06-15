@@ -90,7 +90,7 @@ async def _collect_one(
                 )
             )
             results_list = result.get("results", [])
-            logger.info(f"  [{name}] 网页搜索完成，{result.get('total_results', 0)} 条结果")
+            logger.info(f"  [{name}] 网页搜索完成，{result.get('total', len(results_list))} 条结果")
             for i, r in enumerate(results_list[:3], 1):
                 logger.info(f"    [{i}] {r.get('title', '')} — {r.get('url', '')}")
             return {"competitor": name, "source": "web_search", "data": result}
@@ -231,7 +231,7 @@ async def search_competitors(state: AgentState) -> dict:
     for r in all_results:
         src = r.get("source", "unknown")
         source_counts[src] = source_counts.get(src, 0) + 1
-    logger.info(f"搜索完成，共处理 {len(competitors)} 个竞品，{len(all_results)} 条结果 | " +
+    logger.info(f"搜索完成，共处理 {len(competitors)} 个竞品，{len(all_results)} 个数据源 | " +
                 " | ".join(f"{k}={v}" for k, v in source_counts.items()))
     report_progress(state.get("progress_callback"), "searcher")
     return {

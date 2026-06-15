@@ -63,7 +63,7 @@ class ApifyCollector(BaseCollector):
             if store == "google":
                 actor_id = GOOGLE_PLAY_ACTOR
                 run_input: Dict[str, Any] = {
-                    "appId": target,
+                    "appIdOrUrl": target,
                     "maxReviews": max_reviews,
                     "lang": lang,
                     "country": country,
@@ -90,9 +90,14 @@ class ApifyCollector(BaseCollector):
                 lambda: client.actor(actor_id).call(run_input=run_input)
             )
 
+            # 兼容 dict 和 Run object 两种返回值
+            dataset_id = run.get("defaultDatasetId") if isinstance(run, dict) else run.default_dataset_id
+            if not dataset_id:
+                raise ValueError(f"无法获取 dataset ID，返回: {run}")
+
             # 获取结果
             dataset_items = list(
-                client.dataset(run["defaultDatasetId"]).iterate_items()
+                client.dataset(dataset_id).iterate_items()
             )
 
             raw_data = {
