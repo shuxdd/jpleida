@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-v4"
     embedding_dimensions: int = 1024       # 向量维度
 
+    # 数据库配置
+    database_url: str = "sqlite+aiosqlite:///./data/app.db"
+
     # 向量数据库配置
     chroma_persist_dir: str = "./data/chroma"
     chroma_collection_name: str = "competitors"

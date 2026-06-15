@@ -4,6 +4,24 @@
 # =========================================
 
 services:
+  # -------- PostgreSQL 数据库 --------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app123
+      - POSTGRES_DB=competitor_analysis
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d competitor_analysis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # -------- 后端 API --------
   api:
     build: .
@@ -13,12 +31,15 @@ services:
       - .env
     environment:
       - TZ=Asia/Shanghai
+      - DATABASE_URL=postgresql+asyncpg://app:app123@postgres:5432/competitor_analysis
       - CHROMA_PERSIST_DIR=/data/chroma
       - REPORT_OUTPUT_DIR=/data/reports
     volumes:
       - ./data:/data
       - ./logs:/app/logs
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_started
     restart: unless-stopped
@@ -55,4 +76,5 @@ services:
       retries: 3
 
 volumes:
+  postgres_data:
   redis_data:

@@ -5,7 +5,6 @@
 异步 SQLAlchemy 引擎、Session 和 ORM 模型定义。
 """
 
-import os
 import uuid
 from datetime import datetime
 from typing import AsyncGenerator
@@ -17,13 +16,8 @@ from sqlalchemy.orm import DeclarativeBase
 from config.settings import settings
 
 
-# 异步引擎（默认使用 SQLite）
-_data_dir = os.path.dirname(settings.chroma_persist_dir) or "."
-os.makedirs(_data_dir, exist_ok=True)
-_db_path = os.path.abspath(os.path.join(_data_dir, "app.db")).replace("\\", "/")
-DATABASE_URL = f"sqlite+aiosqlite:///{_db_path}"
-
-engine = create_async_engine(DATABASE_URL, echo=False)
+# 异步引擎（默认 SQLite，可通过 DATABASE_URL 环境变量切换 PostgreSQL）
+engine = create_async_engine(settings.database_url, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
