@@ -119,6 +119,7 @@ async def _run_analysis(task_id: str, user_id: str):
             task.completed_at = datetime.now()
             await session.commit()
 
+            # 先保存报告，前端立即可见
             if graph_result.get("report"):
                 report_orm = ReportORM(
                     user_id=user_id,
@@ -133,6 +134,9 @@ async def _run_analysis(task_id: str, user_id: str):
 
             logger.info(f"分析任务完成: {task_id}")
 
+            # 知识库异步入库，不阻塞响应
+            asyncio.create_task(_store_knowledge_async(graph_result, user_id))
+
         except Exception as e:
             logger.error(f"分析任务失败: {task_id}, 错误: {e}")
             task.status = "failed"
@@ -142,6 +146,39 @@ async def _run_analysis(task_id: str, user_id: str):
 
         finally:
             _running_tasks.pop(task_id, None)
+
+
+async def _store_knowledge_async(graph_result: dict, user_id: str):
+    """后台执行知识库入库"""
+    try:
+        extracted_info = graph_result.get("extracted_info", [])
+        analysis_results = graph_result.get("analysis_results", {})
+        if not extracted_info:
+            logger.info("无提取数据，跳过知识库入库")
+            return
+
+        from agent.nodes.knowledge_store import store_knowledge
+        from agent.graph_state import AgentState
+
+        state: AgentState = {
+            "competitors": graph_result.get("competitors", []),
+            "analysis_type": "standard",
+            "dimensions": [],
+            "my_product": None,
+            "user_id": user_id,
+            "collection_plan": {},
+            "raw_data": [],
+            "extracted_info": extracted_info,
+            "analysis_results": analysis_results,
+            "report": "",
+            "status": "completed",
+            "errors": [],
+            "progress_callback": None,
+        }
+        await store_knowledge(state)
+        logger.info("后台知识库入库完成")
+    except Exception as e:
+        logger.error(f"后台知识库入库失败: {e}")
 
 
 @router.post("")
