@@ -162,14 +162,15 @@ class TestSchemas:
 
     def test_qa_response_schema(self):
         """测试问答响应 Schema"""
-        from api.schemas import QAResponse
+        from api.schemas import QAResponse, SourceItem
 
         resp = QAResponse(
             answer="Notion 提供免费版和付费版",
-            sources=["竞品知识库"],
+            sources=[SourceItem(type="knowledge_base", competitor="Notion", title="知识库")],
         )
         assert "Notion" in resp.answer
         assert len(resp.sources) == 1
+        assert resp.sources[0].type == "knowledge_base"
 
 
 class TestCompetitorRoutes:
@@ -345,9 +346,13 @@ class TestQARoutes:
     @pytest.mark.asyncio
     async def test_qa_submit(self, client, auth_headers):
         """测试提交问答"""
-        with patch("api.routers.qa._get_knowledge_context") as mock_ctx, \
+        with patch("api.routers.qa._search_knowledge") as mock_kb, \
+             patch("api.routers.qa._search_reports") as mock_rp, \
+             patch("api.routers.qa._search_analysis") as mock_an, \
              patch("api.routers.qa._ask_llm") as mock_llm:
-            mock_ctx.return_value = "Notion 是一款笔记协作工具"
+            mock_kb.return_value = ("Notion 是一款笔记协作工具", [])
+            mock_rp.return_value = ("", [])
+            mock_an.return_value = ("", [])
             mock_llm.return_value = "Notion 是一款全能型笔记和协作工具，支持文档、数据库、看板等功能。"
 
             resp = await client.post("/api/qa", json={"question": "Notion 是什么？"})
@@ -359,9 +364,13 @@ class TestQARoutes:
     @pytest.mark.asyncio
     async def test_qa_with_competitors(self, client, auth_headers):
         """测试指定竞品的问答"""
-        with patch("api.routers.qa._get_knowledge_context") as mock_ctx, \
+        with patch("api.routers.qa._search_knowledge") as mock_kb, \
+             patch("api.routers.qa._search_reports") as mock_rp, \
+             patch("api.routers.qa._search_analysis") as mock_an, \
              patch("api.routers.qa._ask_llm") as mock_llm:
-            mock_ctx.return_value = "Notion 定价信息"
+            mock_kb.return_value = ("Notion 定价信息", [])
+            mock_rp.return_value = ("", [])
+            mock_an.return_value = ("", [])
             mock_llm.return_value = "Notion 提供免费版、Plus 版 $8/月、Business 版 $15/月。"
 
             resp = await client.post("/api/qa", json={

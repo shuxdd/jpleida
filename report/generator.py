@@ -55,7 +55,8 @@ class ReportGenerator:
             llm = create_llm(temperature=0.3, max_tokens=8192)
 
             analysis_data = self._prepare_data(analysis_results, competitors)
-            prompt = prompt_template.format(analysis_data=analysis_data)
+            sections_text = self._build_sections_text(report_type)
+            prompt = prompt_template.format(analysis_data=analysis_data, sections=sections_text)
 
             response = await llm.ainvoke(prompt)
             report_content = response.content
@@ -99,6 +100,14 @@ class ReportGenerator:
             **analysis_results,
         }
         return prepare_analysis_data(data)
+
+    def _build_sections_text(self, report_type: str) -> str:
+        """构建报告章节文本"""
+        sections = ReportTemplates.get_sections(report_type)
+        items = []
+        for i, section in enumerate(sections, start=3):
+            items.append(f"### {i}. {section}\n- 基于分析数据撰写{section}内容")
+        return "\n\n".join(items)
 
     def _generate_header(self, competitors: List[str], report_type: str) -> str:
         """生成报告头部"""

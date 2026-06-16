@@ -8,6 +8,8 @@ import type {
   Report,
   QARequest,
   QAResponse,
+  ChatSession,
+  ChatMessage,
   ApiResponse,
   PaginatedResponse,
   EvaluationResult,
@@ -144,6 +146,21 @@ export interface ChartDataResponse {
 export const qaApi = {
   ask: (data: QARequest) =>
     api.post<ApiResponse<QAResponse>>('/api/qa', data),
+
+  listSessions: () =>
+    api.get<ApiResponse<ChatSession[]>>('/api/qa/sessions'),
+
+  createSession: (title?: string) =>
+    api.post<ApiResponse<ChatSession>>('/api/qa/sessions', { title: title || '新对话' }),
+
+  deleteSession: (sessionId: string) =>
+    api.delete<ApiResponse>(`/api/qa/sessions/${sessionId}`),
+
+  listMessages: (sessionId: string) =>
+    api.get<ApiResponse<ChatMessage[]>>(`/api/qa/sessions/${sessionId}/messages`),
+
+  askInSession: (sessionId: string, data: QARequest) =>
+    api.post<ApiResponse<QAResponse>>(`/api/qa/ask/${sessionId}`, data),
 }
 
 export default api

@@ -90,6 +90,29 @@ class ReportORM(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class ChatSessionORM(Base):
+    """对话会话 ORM 模型"""
+    __tablename__ = "chat_sessions"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, nullable=False, index=True)
+    title = Column(String, default="新对话")
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class ChatMessageORM(Base):
+    """对话消息 ORM 模型"""
+    __tablename__ = "chat_messages"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    session_id = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=False)  # "user" | "assistant"
+    content = Column(Text, nullable=False)
+    sources = Column(JSON, default=list)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class EvaluationORM(Base):
     """报告质量评估 ORM 模型"""
     __tablename__ = "evaluations"

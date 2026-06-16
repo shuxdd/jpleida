@@ -65,9 +65,34 @@ export interface QARequest {
   competitors?: string[]
 }
 
+export interface SourceItem {
+  type: 'knowledge_base' | 'report' | 'analysis'
+  competitor?: string | null
+  title?: string | null
+  snippet?: string | null
+  relevance?: number | null
+}
+
 export interface QAResponse {
   answer: string
-  sources: string[]
+  sources: SourceItem[]
+}
+
+export interface ChatSession {
+  id: string
+  title: string
+  message_count: number
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface ChatMessage {
+  id: string
+  session_id: string
+  role: 'user' | 'assistant'
+  content: string
+  sources: SourceItem[]
+  created_at?: string | null
 }
 
 // 通用响应

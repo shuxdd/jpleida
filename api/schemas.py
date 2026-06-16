@@ -139,10 +139,44 @@ class ReportResponse(BaseModel):
 class QARequest(BaseModel):
     """问答请求"""
     question: str = Field(..., min_length=1, description="问题内容，不能为空")
+    session_id: Optional[str] = Field(None, description="会话ID，为空则创建新会话（已废弃，请用 /qa/ask/{session_id}）")
     competitors: Optional[List[str]] = None
+
+
+class SourceItem(BaseModel):
+    """来源条目"""
+    type: str = Field(..., description="来源类型: knowledge_base / report / analysis")
+    competitor: Optional[str] = None
+    title: Optional[str] = None
+    snippet: Optional[str] = None
+    relevance: Optional[float] = None
 
 
 class QAResponse(BaseModel):
     """问答响应"""
     answer: str
-    sources: List[str] = []
+    sources: List[SourceItem] = []
+
+
+class ChatSessionResponse(BaseModel):
+    """会话响应"""
+    id: str
+    title: str
+    message_count: int = 0
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ChatMessageResponse(BaseModel):
+    """消息响应"""
+    id: str
+    session_id: str
+    role: str
+    content: str
+    sources: List[SourceItem] = []
+    created_at: Optional[str] = None
+
+
+class ChatSessionCreateRequest(BaseModel):
+    """创建会话请求"""
+    title: str = "新对话"
