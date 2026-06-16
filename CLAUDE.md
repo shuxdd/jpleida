@@ -150,14 +150,14 @@ GITHUB_TOKEN=your-github-token（可选，无限流限制）
 | config/ | ✅ 完成 | 配置管理 |
 | agent/ | ✅ 完成 | LangGraph状态图（线性流程 + knowledge_store 节点） |
 | report/ | ✅ 完成 | 报告生成（模板管理、Markdown导出） |
-| api/ | ✅ 完成 | FastAPI接口（JWT认证、竞品CRUD、分析任务、报告管理、智能问答） |
+| api/ | ✅ 完成 | FastAPI接口（JWT认证、竞品CRUD、分析任务、报告管理、智能问答含会话记忆） |
 | frontend/ | ✅ 完成 | React前端（TypeScript + Tailwind + shadcn/ui + 登录/注册/路由守卫） |
 | utils/ | ✅ 完成 | 工具类（日志、JSON、日期、文本、元数据、LLM解析、报告辅助） |
 
 ## 测试统计
 
 - 测试文件：8个（含 utils/tests/）
-- 测试用例：148个（收集器 16 个、Apify 采集器 12 个、模型 15 个、知识库 8 个、Agent 11 个、报告 10 个、API 28 个、utils 48 个）
+- 测试用例：150个（收集器 16 个、Apify 采集器 12 个、模型 15 个、知识库 8 个、Agent 11 个、报告 10 个、API 30 个、utils 48 个）
 - 状态：全部通过
 
 ## 相关文档

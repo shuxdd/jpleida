@@ -56,7 +56,7 @@ export default function AnalysisDetail() {
   const [currentProgress, setCurrentProgress] = useState(0)
   const [currentMessage, setCurrentMessage] = useState('')
 
-  const { data, isLoading, error } = useQuery({
+  const { data, error } = useQuery({
     queryKey: ['analysis-task', id],
     queryFn: () => analysisApi.getTask(id!),
     enabled: !!id,
@@ -65,6 +65,8 @@ export default function AnalysisDetail() {
       if (status && status !== 'completed' && status !== 'failed') return 3000
       return false
     },
+    retry: 3,
+    retryDelay: 2000,
   })
 
   const task = data?.data?.data
@@ -105,7 +107,6 @@ export default function AnalysisDetail() {
 
     ws.onclose = () => {
       console.log('[WS] 已断开')
-      queryClient.invalidateQueries({ queryKey: ['analysis-task', id] })
     }
 
     ws.onerror = (e) => {
@@ -188,7 +189,19 @@ export default function AnalysisDetail() {
   // 判断是否在执行中
   const isRunning = task && ['pending', 'running', 'planning', 'collecting'].includes(task.status)
 
-  if (isLoading) {
+  if (!task) {
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">{error.message?.includes('404') ? '任务不存在' : '加载失败，请稍后重试'}</p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/analysis')}>
+            返回列表
+          </Button>
+        </div>
+      )
+    }
+    // 仍在加载中
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -197,16 +210,9 @@ export default function AnalysisDetail() {
     )
   }
 
-  if (error || !task) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">任务不存在</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate('/analysis')}>
-          返回列表
-        </Button>
-      </div>
-    )
+  // 轮询失败时保留上次数据，不跳错误页
+  if (error) {
+    console.warn('[Analysis] 轮询失败，使用缓存数据:', error)
   }
 
   return (
